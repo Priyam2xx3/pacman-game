@@ -18,6 +18,8 @@
             height: 100vh;
             margin: 0;
             overflow: hidden;
+            touch-action: manipulation;
+            /* Disable double-tap/pinch zoom */
         }
 
         .header {
@@ -36,10 +38,16 @@
             border: 4px solid #1f2833;
             border-radius: 8px;
             background-color: #000;
+            width: 630px;
+            height: 630px;
+            max-width: 95vw;
+            max-height: 95vw;
         }
 
         canvas {
             display: block;
+            width: 100%;
+            height: 100%;
         }
 
         .ui-layer {
@@ -101,6 +109,82 @@
         .score-val {
             color: #ffeb3b;
         }
+
+        /* Mobile Controls */
+        .mobile-controls {
+            display: none;
+            grid-template-columns: repeat(3, 70px);
+            grid-template-rows: repeat(3, 70px);
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+            z-index: 100;
+        }
+
+        .control-btn {
+            background-color: rgba(255, 235, 59, 0.15);
+            border: 2px solid #ffeb3b;
+            color: #ffeb3b;
+            border-radius: 16px;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            touch-action: manipulation;
+            box-shadow: 0 4px 0 #b3a529;
+            transition: all 0.1s;
+        }
+
+        .control-btn:active,
+        .control-btn.active {
+            background-color: rgba(255, 235, 59, 0.4);
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #b3a529;
+        }
+
+        .btn-up {
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        .btn-left {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        .btn-right {
+            grid-column: 3;
+            grid-row: 2;
+        }
+
+        .btn-down {
+            grid-column: 2;
+            grid-row: 3;
+        }
+
+        @media (max-width: 680px) {
+            .header {
+                width: 95vw;
+                padding: 0 10px;
+                box-sizing: border-box;
+                font-size: 14px;
+                margin-bottom: 10px;
+            }
+
+            .mobile-controls {
+                display: grid;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            p {
+                font-size: 12px;
+            }
+        }
     </style>
 </head>
 
@@ -131,6 +215,14 @@
             <p>Final Score: <span id="winScore" class="score-val">0</span></p>
             <button id="restartBtnWin">Play Again</button>
         </div>
+    </div>
+
+    <!-- Mobile Controls D-Pad -->
+    <div class="mobile-controls" id="mobileControls">
+        <div class="control-btn btn-up" id="btnUp">▲</div>
+        <div class="control-btn btn-left" id="btnLeft">◀</div>
+        <div class="control-btn btn-down" id="btnDown">▼</div>
+        <div class="control-btn btn-right" id="btnRight">▶</div>
     </div>
 
     <script>
@@ -322,19 +414,17 @@
             }
         }
 
-        window.addEventListener('keydown', e => {
-            if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
-            e.preventDefault();
+        function handleDirectionInput(key) {
             if (gameState !== 'playing') return;
 
             // Determine intended velocity
             let nextVx = 0;
             let nextVy = 0;
             let angle = pacman.angle;
-            if (e.key === 'ArrowUp') { nextVx = 0; nextVy = -tileSize; angle = -Math.PI / 2; }
-            if (e.key === 'ArrowDown') { nextVx = 0; nextVy = tileSize; angle = Math.PI / 2; }
-            if (e.key === 'ArrowLeft') { nextVx = -tileSize; nextVy = 0; angle = Math.PI; }
-            if (e.key === 'ArrowRight') { nextVx = tileSize; nextVy = 0; angle = 0; }
+            if (key === 'ArrowUp') { nextVx = 0; nextVy = -tileSize; angle = -Math.PI / 2; }
+            if (key === 'ArrowDown') { nextVx = 0; nextVy = tileSize; angle = Math.PI / 2; }
+            if (key === 'ArrowLeft') { nextVx = -tileSize; nextVy = 0; angle = Math.PI; }
+            if (key === 'ArrowRight') { nextVx = tileSize; nextVy = 0; angle = 0; }
 
             // Check if the intended next tile is a wall
             let c = Math.floor((pacman.x + canvas.width) % canvas.width / tileSize);
@@ -351,9 +441,41 @@
                 pacman.angle = angle;
 
                 // Execute a step
-                movePacmanStep(0, 0); // No need to pass previous velocity anymore since we verified ahead
+                movePacmanStep(0, 0);
             }
+        }
+
+        window.addEventListener('keydown', e => {
+            if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+            e.preventDefault();
+            handleDirectionInput(e.key);
         });
+
+        // Helper to visually press buttons
+        function pressButton(id) {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.classList.add('active');
+                setTimeout(() => btn.classList.remove('active'), 150);
+            }
+        }
+
+        // Mobile Button Listeners
+        const setupMobileButton = (id, direction) => {
+            const btn = document.getElementById(id);
+            const handler = (e) => {
+                e.preventDefault(); // Prevent double firing from touch + click
+                pressButton(id);
+                handleDirectionInput(direction);
+            };
+            btn.addEventListener('touchstart', handler, { passive: false });
+            btn.addEventListener('mousedown', handler);
+        };
+
+        setupMobileButton('btnUp', 'ArrowUp');
+        setupMobileButton('btnDown', 'ArrowDown');
+        setupMobileButton('btnLeft', 'ArrowLeft');
+        setupMobileButton('btnRight', 'ArrowRight');
 
         document.getElementById('startBtn').addEventListener('click', startGame);
         document.getElementById('restartBtn').addEventListener('click', startGame);
