@@ -238,32 +238,61 @@ canvas {
 /* Mobile Controls */
 .mobile-controls {
     display: none;
-    grid-template-columns: repeat(3, 70px);
-    grid-template-rows: repeat(3, 70px);
-    gap: 10px;
+    grid-template-columns: repeat(3, 80px);
+    grid-template-rows: repeat(3, 80px);
+    gap: 0;
     justify-content: center;
     margin-top: 15px;
     z-index: 100;
 }
 
 .control-btn {
-    background-color: rgba(0, 255, 255, 0.05);
-    border: 2px solid var(--neon-primary);
+    background-color: transparent;
     color: var(--neon-primary);
-    border-radius: 12px;
-    font-size: 28px;
+    font-size: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     user-select: none;
     touch-action: manipulation;
-    box-shadow: 0 0 10px var(--neon-primary) inset;
     transition: all 0.1s;
+    /* Increase huge invisible tap target */
+    padding: 15px;
 }
 
-.control-btn:active,
-.control-btn.active {
+/* Inner visually smaller button */
+.control-btn::before {
+    content: attr(id);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    border: 2px solid var(--neon-primary);
+    border-radius: 12px;
+    background-color: rgba(0, 255, 255, 0.05);
+    box-shadow: 0 0 10px var(--neon-primary) inset;
+}
+
+#btnUp::before {
+    content: '▲';
+}
+
+#btnDown::before {
+    content: '▼';
+}
+
+#btnLeft::before {
+    content: '◀';
+}
+
+#btnRight::before {
+    content: '▶';
+}
+
+.control-btn:active::before,
+.control-btn.active::before {
     background-color: rgba(0, 255, 255, 0.2);
     transform: translateY(4px);
     box-shadow: 0 0 20px var(--neon-primary) inset, 0 0 10px var(--neon-primary);
@@ -287,6 +316,29 @@ canvas {
 .btn-down {
     grid-column: 2;
     grid-row: 3;
+}
+
+.floating-pause {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: transparent;
+    border: 2px solid var(--neon-secondary);
+    color: var(--neon-secondary);
+    font-size: 16px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 10px var(--neon-secondary) inset;
+    z-index: 101;
+}
+
+.floating-pause:active {
+    transform: scale(0.9);
 }
 
 /* Toast Notifications for Achievements */
@@ -406,5 +458,10 @@ canvas {
         left: 10px;
         bottom: 10px;
         font-size: 10px;
+    }
+
+    .floating-pause {
+        display: flex;
+        /* Show only on mobile screens */
     }
 }

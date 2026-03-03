@@ -100,12 +100,15 @@ export class Ghost extends BaseEntity {
             this.vy = move.vy * this.speed;
         }
 
-        // Snap to grid lines if drift occurs, but maintain velocity scaling
-        if (this.vx !== 0 && Math.abs(this.vx) !== this.speed && isCenter(this.x, this.y, this.tileSize)) {
-            this.vx = Math.sign(this.vx) * this.speed;
-        }
-        if (this.vy !== 0 && Math.abs(this.vy) !== this.speed && isCenter(this.x, this.y, this.tileSize)) {
-            this.vy = Math.sign(this.vy) * this.speed;
+        // Precise strict grid snapping based on velocity
+        if (this.vx !== 0) {
+            // Keep y perfectly centered on the row
+            let r = getGridPos(this.y, this.tileSize);
+            this.y = r * this.tileSize + this.tileSize / 2;
+        } else if (this.vy !== 0) {
+            // Keep x perfectly centered on the column
+            let c = getGridPos((this.x + mapCols * this.tileSize) % (mapCols * this.tileSize), this.tileSize);
+            this.x = c * this.tileSize + this.tileSize / 2;
         }
 
         this.x += this.vx;

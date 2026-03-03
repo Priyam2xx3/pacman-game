@@ -59,6 +59,8 @@ let rafId = null;
 
 const levelMgr = new LevelManager();
 let pacman = new Pacman(10, 15, 2, tileSize);
+pacman.nextVx = 0;
+pacman.nextVy = 0;
 let ghosts = [];
 
 // Base UI References
@@ -208,14 +210,13 @@ window.addEventListener('keydown', e => {
     let nextVy = 0;
     let angle = pacman.angle;
 
-    if (e.key === 'ArrowUp') { nextVx = 0; nextVy = -tileSize; angle = -Math.PI / 2; }
-    else if (e.key === 'ArrowDown') { nextVx = 0; nextVy = tileSize; angle = Math.PI / 2; }
-    else if (e.key === 'ArrowLeft') { nextVx = -tileSize; nextVy = 0; angle = Math.PI; }
-    else if (e.key === 'ArrowRight') { nextVx = tileSize; nextVy = 0; angle = 0; }
+    if (e.key === 'ArrowUp') { pacman.nextVx = 0; pacman.nextVy = -tileSize; }
+    else if (e.key === 'ArrowDown') { pacman.nextVx = 0; pacman.nextVy = tileSize; }
+    else if (e.key === 'ArrowLeft') { pacman.nextVx = -tileSize; pacman.nextVy = 0; }
+    else if (e.key === 'ArrowRight') { pacman.nextVx = tileSize; pacman.nextVy = 0; }
     else return;
 
     e.preventDefault();
-    attemptPacmanTurn(nextVx, nextVy, angle);
 });
 
 // Mobile Controls D-Pad bridging
@@ -231,35 +232,54 @@ window.addEventListener('keydown', e => {
     }
 });
 
-function attemptPacmanTurn(nextVx, nextVy, angle) {
-    let c = getGridPos(pacman.x + canvas.width % canvas.width, tileSize);
-    let r = getGridPos(pacman.y, tileSize);
-    let nc = c + Math.sign(nextVx);
-    let nr = r + Math.sign(nextVy);
-
-    if (nc < 0) nc = mapCols - 1; else if (nc >= mapCols) nc = 0;
-
-    let tile = map[nr] ? map[nr][nc] : 1;
-    if (nr >= 0 && nr < mapRows && tile !== 1 && tile !== 4) {
-        pacman.vx = nextVx;
-        pacman.vy = nextVy;
-        pacman.angle = angle;
-    }
-}
-
-function togglePause() {
-    if (gameState === 'playing') {
-        gameState = 'paused';
-        document.getElementById('pauseOverlay').classList.remove('hidden');
-    } else if (gameState === 'paused') {
-        gameState = 'playing';
-        document.getElementById('pauseOverlay').classList.add('hidden');
-        requestAnimationFrame(gameLoop);
-    }
-}
-
 // --- Movement & Logic ---
+function attemptPacmanTurn() {
+    // Only attempt turn if a new direction is queued
+    if (pacman.nextVx === 0 && pacman.nextVy === 0) return;
+
+    // Only turn if precisely in the center of a tile
+    if (isCenter(pacman.x, pacman.y, tileSize)) {
+        let c = getGridPos((pacman.x + canvas.width) % canvas.width, tileSize);
+        let r = getGridPos(pacman.y, tileSize);
+        let nc = c + Math.sign(pacman.nextVx);
+        let nr = r + Math.sign(pacman.nextVy);
+
+        if (nc < 0) nc = mapCols - 1; else if (nc >= mapCols) nc = 0;
+
+        let tile = map[nr] ? map[nr][nc] : 1;
+        if (nr >= 0 && nr < mapRows && tile !== 1 && tile !== 4) {
+            pacman.vx = pacman.nextVx;
+            pacman.vy = pacman.nextVy;
+
+            // Set angle based on physical movement applied
+            if (pacman.vx > 0) pacman.angle = 0;
+            else if (pacman.vx < 0) pacman.angle = Math.PI;
+            else if (pacman.vy > 0) pacman.angle = Math.PI / 2;
+            else if (pacman.vy < 0) pacman.angle = -Math.PI / 2;
+
+            // Reset queued turn
+            pacman.nextVx = 0;
+            pacman.nextVy = 0;
+        }
+    } else if (
+        // Allow immediate 180 degree U-turns without waiting for center
+        (pacman.vx !== 0 && Math.sign(pacman.vx) === -Math.sign(pacman.nextVx)) ||
+        (pacman.vy !== 0 && Math.sign(pacman.vy) === -Math.sign(pacman.nextVy))
+    ) {
+        pacman.vx = pacman.nextVx;
+        pacman.vy = pacman.nextVy;
+        if (pacman.vx > 0) pacman.angle = 0;
+        else if (pacman.vx < 0) pacman.angle = Math.PI;
+        else if (pacman.vy > 0) pacman.angle = Math.PI / 2;
+        else if (pacman.vy < 0) pacman.angle = -Math.PI / 2;
+        pacman.nextVx = 0;
+        pacman.nextVy = 0;
+    }
+}
+
 function movePacman() {
+    attemptPacmanTurn();
+
     if (pacman.vx === 0 && pacman.vy === 0) return;
 
     let c = getGridPos((pacman.x + canvas.width) % canvas.width, tileSize);
@@ -347,17 +367,23 @@ function checkCollisions() {
                 playSound('eatGhost');
                 updateHUD();
             } else if (ghost.state === 'normal') {
-                playSound('die');
-                lives--;
-                updateHUD();
+                // Generous collision buffer for ghost deaths
+                let overlapDist = 180;
+                if (dx * dx + dy * dy < overlapDist) {
+                    playSound('die');
+                    lives--;
+                    updateHUD();
 
-                if (lives <= 0) {
-                    handleGameOver();
-                } else {
-                    pacman.reset();
-                    ghosts.forEach(g => g.reset());
+                    if (lives <= 0) {
+                        handleGameOver();
+                    } else {
+                        pacman.reset();
+                        pacman.nextVx = 0;
+                        pacman.nextVy = 0;
+                        ghosts.forEach(g => g.reset());
+                    }
+                    break;
                 }
-                break;
             }
         }
     }
